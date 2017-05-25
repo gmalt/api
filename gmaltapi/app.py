@@ -12,16 +12,35 @@
 from gevent import monkey
 monkey.patch_all()  # noqa
 
-import weedi.loadables_repository as loadables_repository
+import configobj
+import pkg_resources
+import validate
+
+from . import server
 
 
-class ServicesRepository(loadables_repository.LoadablesRepository):
-    """ Use setuptools entry point to manage service dependency injection
+class GmaltConfigObj(configobj.ConfigObj):
+    def __init__(self, conf_file, spec):
+        super(GmaltConfigObj, self).__init__(conf_file, configspec=configobj.ConfigObj(spec),
+                                             list_values=False, interpolation='Template')
 
-    .. seealso:: https://github.com/weenect/weedi
-    """
-    entry_point = 'services'
-    conf_section = 'gmalt'
+    def verify(self):
+        # first verify the server section
+        validator = validate.Validator()
+        result = configobj.flatten_errors(self, self.validate(validator, preserve_errors=True))
+
+        # then the handler section (we need a valid server to know the type of the handler)
+
+        return len(result), self._format_validate_result(result)
+
+    @staticmethod
+    def _format_validate_result(result):
+        error_text = ""
+        for error in result:
+            error_text += "'{1}' in {0} : {2}\n".format(*error)
+        return error_text
+
+
 
 
 class App(object):
@@ -30,25 +49,27 @@ class App(object):
 
     :param str conf_file: path to the config file
     """
+
+    spec = {
+        'root': 'string(default="%s")' % pkg_resources.get_distribution('gmaltapi').location,
+        'server': server.GmaltServer.spec,
+        'handler': {}
+    }
+
     def __init__(self, conf_file):
-        self.services = ServicesRepository()
-        self.services.load(conf_file)
-
-    def get(self, service_name):
-        """ Get a service by its code/name
-
-        :param str service_name: code/name of the service
-        :return: the instance of the service
-        """
-        return self.services[service_name]
+        self.conf = GmaltConfigObj(conf_file, self.spec)
+        self.conf.verify()
 
     def start_worker(self):
         """ Start the celery worker using the sys.argv configuration """
+        # TODO : rework celery instanciation
         return self.get('celery').worker_main()
 
     def start_server(self):
-        """ Start the gevent wsgi webserver """
-        return self.get('server').serve_forever()
+        try:
+            server.GmaltServer(**self.conf['server']).serve_forever()
+        except KeyboardInterrupt:
+            pass  # silent exit on CTRL+C
 
 
 def run_server(*args, **kwargs):

@@ -26,7 +26,7 @@ setup(
     packages=find_packages(),
     long_description=read('README.rst'),
     install_requires=(
-        'celery', 'redis', 'weedi', 'gevent'
+        'celery', 'redis', 'webob', 'gevent', 'configobj'
     ),
     extras_require={
         'test': ['flake8']

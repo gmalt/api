@@ -9,60 +9,37 @@
 
 """ Webservice HTTP REST API """
 
-from sys import exc_info
-from traceback import format_tb
+import json
+
 from gevent.pywsgi import WSGIServer
-import weedi.loadable as loadable
+from webob import Request, Response
 
 
-class WSGIExceptionMiddleware(object):
+class WSGIHandler(object):
     """ Manage exception to return formatted message to client
 
-    :param task: the celery instance
-    :type task: :class:`gmaltfileservice.task.GmaltCelery`
     :param handler: WSGI callable
     """
-    def __init__(self, server, handler):
-        self.server = server
-        self.application = handler
+    def __init__(self, handler_type):
+        self.handler_type = handler_type
 
     def __call__(self, environ, start_response):
-        """ Exception formatting WSGI handler """
+        res = Response()
+
         try:
-            return self.application(self.server, environ, start_response)
+            req = Request(environ)
+
+            altitude = 52
+
+            res.body = json.dumps({'altitude': altitude})
+            res.content_type = 'application/json'
         except:
-            e_type, e_value, tb = exc_info()
-            traceback = ['Traceback (most recent call last):']
-            traceback += format_tb(tb)
-            traceback.append('%s: %s' % (e_type.__name__, e_value))
-            try:
-                start_response('500 INTERNAL SERVER ERROR', [
-                               ('Content-Type', 'text/plain')])
-            except:
-                pass
-            print('\n'.join(traceback))
-        return ['\n'.join(traceback).encode('utf-8')]
+            res.status_code = 500
+            req.body = json.dumps({'error': 'An error occured. check the log file on the server.'})
+        return res(environ, start_response)
 
 
-def get_altitude_handler(task, environ, start_response):
-    """ Handler to schedule a task to get an elevation value
-
-    :param task: the celery instance
-    :type task: :class:`gmaltfileservice.task.GmaltCelery`
-    :param environ: WSGI environment
-    :param start_response: WSGI start_response
-    :return: list of WSGI binary body response
-    """
-    print(task.altitude.delay(4, 4).get())
-    if environ['PATH_INFO'] == '/':
-        start_response('200 OK', [('Content-Type', 'text/html')])
-        return [b"<b>hello world</b>"]
-    else:
-        start_response('404 Not Found', [('Content-Type', 'text/html')])
-        return [b'<h1>Not Found</h1>']
-
-
-class GmaltServer(WSGIServer, loadable.Service):
+class GmaltServer(WSGIServer):
     """ A gevent webserver API to request elevation data
 
     :param str host: host or ip binded to
@@ -71,14 +48,13 @@ class GmaltServer(WSGIServer, loadable.Service):
     :type celery_service: :class:`gmaltfileservice.task.GmaltCelery`
     """
     spec = {
+        'handler': 'string(default="file")',
         'host': 'string(default="localhost")',
-        'port': 'integer(default=8088)',
+        'port': 'integer(default=8088)'
     }
 
-    def __init__(self, host, port, celery_service):
-        super(GmaltServer, self).__init__(
-            (host, port),
-            WSGIExceptionMiddleware(celery_service, get_altitude_handler))
+    def __init__(self, handler, host, port):
+        super(GmaltServer, self).__init__((host, port), WSGIHandler(handler))
 
     def serve_forever(self):
         print('Serving on %s:%d' % self.address)

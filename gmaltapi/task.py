@@ -11,7 +11,6 @@
 """ Celery task and service  """
 
 import time
-import weedi.loadable as loadable
 from celery import Celery, Task
 
 
@@ -25,14 +24,13 @@ class GetAltitudeTask(Task):
         return lat + lng
 
 
-class GmaltCelery(Celery, loadable.Service):
+class GmaltCelery(Celery):
     """ The celery application
 
     :param str name: name of the celery application
     :param str broker: uri to the broker
     :param str backend: uri to the backend
     """
-    load_priority = -10
 
     spec = {
         'name': 'string()',
@@ -62,3 +60,21 @@ class GmaltCelery(Celery, loadable.Service):
         :rtype: :class:`gmaltfileservice.task.GetAltitudeTask`
         """
         return self.tasks[GetAltitudeTask.name]
+
+
+def get_altitude_handler(task, environ, start_response):
+    """ Handler to schedule a task to get an elevation value
+
+    :param task: the celery instance
+    :type task: :class:`gmaltfileservice.task.GmaltCelery`
+    :param environ: WSGI environment
+    :param start_response: WSGI start_response
+    :return: list of WSGI binary body response
+    """
+    print(task.altitude.delay(4, 4).get())
+    if environ['PATH_INFO'] == '/':
+        start_response('200 OK', [('Content-Type', 'text/html')])
+        return [b"<b>hello world</b>"]
+    else:
+        start_response('404 Not Found', [('Content-Type', 'text/html')])
+        return [b'<h1>Not Found</h1>']
