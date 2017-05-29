@@ -1,0 +1,1 @@
+print('celery module loaded')
