@@ -101,7 +101,7 @@ def run_server(*args, **kwargs):
 
     Usage : `gmalt-file-server conf/gmal.cfg`
     """
-    app = App('conf/gmalt.cfg')
+    app = App('conf/gmalt.cfg.dev')
     app.start_server()
 
 
@@ -113,5 +113,5 @@ def run_worker(*args, **kwargs):
 
     Usage : `gmalt-file-server -P gevent -c 10 -gmalt-config conf/gmal.cfg`
     """
-    app = App('conf/gmalt.cfg')
+    app = App('conf/gmalt.cfg.dev')
     app.start_worker()

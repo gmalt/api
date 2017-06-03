@@ -73,7 +73,8 @@ class WSGIHandler(object):
 
     def __call__(self, environ, start_response):
         try:
-            result = self.schema.load(Request(environ))
+            req = Request(environ)
+            result = self.schema.load(req)
             if result.errors:
                 raise webob.exc.HTTPBadRequest(detail=result.errors)
             status_code = 200
@@ -102,6 +103,7 @@ class GmaltServer(WSGIServer):
     :param celery_service: the celery instance
     :type celery_service: :class:`gmaltfileservice.task.GmaltCelery`
     """
+
     spec = {
         'handler': 'string(default="file")',
         'host': 'string(default="localhost")',
@@ -111,6 +113,6 @@ class GmaltServer(WSGIServer):
     def __init__(self, handler, host, port):
         super(GmaltServer, self).__init__((host, port), WSGIHandler(handler))
 
-    def serve_forever(self):
+    def serve_forever(self, stop_timeout=None):
         print('Serving on %s:%d' % self.address)
-        super(GmaltServer, self).serve_forever()
+        super(GmaltServer, self).serve_forever(stop_timeout=stop_timeout)
