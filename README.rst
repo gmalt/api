@@ -1,6 +1,9 @@
 gmalt API
 =========
 
+.. image:: https://travis-ci.org/gmalt/api.svg?branch=master
+    :target: https://travis-ci.org/gmalt/api
+
 gMalt API returning an altitude from a position
 
 Installation

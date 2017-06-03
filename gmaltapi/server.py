@@ -87,16 +87,19 @@ class WSGIHandler(object):
             body = e.detail
         except NoMatchFound as e:
             status_code = 404
-            body = {'message': e.response.explanation + ' Use GET /altitude instead.',
+            explanation = e.response.explanation
+            body = {'message': explanation + ' Use GET /altitude instead.',
                     'code': status_code, 'title': e.response.title}
         except webob.exc.WSGIHTTPException as e:
             status_code = e.status_code
-            body = {'message': e.explanation, 'code': status_code, 'title': e.title}
+            body = {'message': e.explanation, 'code': status_code,
+                    'title': e.title}
         except Exception as e:
             logging.exception(e)
             status_code = 500
-            body = {'message': 'An error occured. check the log file on the server.',
-                    'code': status_code, 'title': 'Internal Server Error'}
+            explanation = 'An error occured. check the log file on the server.'
+            body = {'message': explanation, 'code': status_code,
+                    'title': 'Internal Server Error'}
 
         res = Response()
         res.status_code = status_code
