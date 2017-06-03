@@ -21,6 +21,8 @@ from gevent.pywsgi import WSGIServer
 from marshmallow import Schema, fields, pre_load
 from webob import Request, Response
 import webob.exc
+from routr import route, GET, POST, OPTIONS
+from routr.exc import NoMatchFound
 
 import gmaltapi.handlers
 
@@ -70,22 +72,31 @@ class WSGIHandler(object):
     def __init__(self, alt_handler):
         self.alt_handler = alt_handler
         self.schema = AltSchema()
+        self.router = route("",
+                            route(GET,  "/altitude", self.get_altitude),
+                            route(POST, "/altitude", self.get_altitude),
+                            route(OPTIONS, "/altitude", self.options_altitude))
 
     def __call__(self, environ, start_response):
         try:
             req = Request(environ)
-            result = self.schema.load(req)
-            if result.errors:
-                raise webob.exc.HTTPBadRequest(detail=result.errors)
+            body = self.router(req).target(req)
             status_code = 200
-            body = {'alt': self.alt_handler.get_altitude(**result.data)}
+        except webob.exc.HTTPBadRequest as e:
+            status_code = 400
+            body = e.detail
+        except NoMatchFound as e:
+            status_code = 404
+            body = {'message': e.response.explanation + ' Use GET /altitude instead.',
+                    'code': status_code, 'title': e.response.title}
         except webob.exc.WSGIHTTPException as e:
             status_code = e.status_code
-            body = e.detail
+            body = {'message': e.explanation, 'code': status_code, 'title': e.title}
         except Exception as e:
             logging.exception(e)
             status_code = 500
-            body = {'error': 'An error occured. check the log file on the server.'}
+            body = {'message': 'An error occured. check the log file on the server.',
+                    'code': status_code, 'title': 'Internal Server Error'}
 
         res = Response()
         res.status_code = status_code
@@ -93,6 +104,15 @@ class WSGIHandler(object):
         res.content_type = 'application/json'
 
         return res(environ, start_response)
+
+    def get_altitude(self, req):
+        result = self.schema.load(req)
+        if result.errors:
+            raise webob.exc.HTTPBadRequest(detail=result.errors)
+        return {'alt': self.alt_handler.get_altitude(**result.data)}
+
+    def options_altitude(self, req):
+        pass
 
 
 class GmaltServer(WSGIServer):
