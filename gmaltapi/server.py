@@ -130,11 +130,12 @@ class GmaltServer(WSGIServer):
     spec = {
         'handler': 'string(default="file")',
         'host': 'string(default="localhost")',
-        'port': 'integer(default=8088)'
+        'port': 'integer(default=8088)',
+        'pool_size': 'integer(default="default")'
     }
 
-    def __init__(self, handler, host, port):
-        super(GmaltServer, self).__init__((host, port), WSGIHandler(handler))
+    def __init__(self, handler, host, port, pool_size):
+        super(GmaltServer, self).__init__((host, port), WSGIHandler(handler), spawn=pool_size)
 
     def serve_forever(self, stop_timeout=None):
         print('Serving on %s:%d' % self.address)

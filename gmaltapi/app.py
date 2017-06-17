@@ -22,7 +22,6 @@ from . import server
 class GmaltConfigObj(configobj.ConfigObj):
     def __init__(self, handler_loader, conf_file, spec):
         # First load current config to extract the configured handler
-
         spec['server']['handler'] = self._build_handler_spec(handler_loader)
         self._fill_parent(conf_file, spec)
 
@@ -61,7 +60,6 @@ class GmaltConfigObj(configobj.ConfigObj):
     def _format_validate_result(result):
         error_text = ""
         for error in result:
-            print(error)
             if error[2] is False:
                 error_format = "'{1}' in {0} : missing required\n"
             else:
