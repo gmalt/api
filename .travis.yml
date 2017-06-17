@@ -6,10 +6,24 @@ python:
   - "3.5"
   - "3.6"
 
+services:
+  - postgresql
+
 install:
   - python setup.py develop
   - pip install -e .[test]
   - pip install -U pytest
+
+before_script:
+    - pip install gmaltcli
+    - "TMPDIR=`mktemp -d`"
+    - "gmalt-hgtget small $TMPDIR"
+    - "curl -o $TMPDIR/gmalt_api_test.sql https://raw.githubusercontent.com/gmalt/data/master/gmalt_api_test.sql"
+    - psql -c 'create database hgt_test;' -U postgres
+    - psql -U postgres -d hgt_test -c "create extension postgis;"
+    - "psql -U postgres -d hgt_test < $TMPDIR/gmalt_api_test.sql"
+    - "psql -U postgres -d hgt_test -c 'SELECT COUNT(*) FROM elevation;'"
+    - "psql -U postgres -d hgt_test -c 'SELECT COUNT(*) FROM elevation_raster;'"
 
 script:
   - flake8 gmaltcli
