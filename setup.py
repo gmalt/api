@@ -30,7 +30,7 @@ setup(
         'gmalthgtparser', 'routr', 'marshmallow'
     ],
     extras_require={
-        'test': ['flake8']
+        'test': ['flake8', 'requests', 'pytest']
     },
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",

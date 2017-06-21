@@ -26,4 +26,5 @@ before_script:
     - "psql -U postgres -d hgt_test -c 'SELECT COUNT(*) FROM elevation_raster;'"
 
 script:
-  - flake8 gmaltcli
+  - flake8 gmaltapi
+  - pytest gmaltapi/tests/e2e/ --folder=$TMPDIR

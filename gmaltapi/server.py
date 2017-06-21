@@ -103,8 +103,9 @@ class WSGIHandler(object):
 
         res = Response()
         res.status_code = status_code
-        res.body = json.dumps(body)
-        res.content_type = 'application/json'
+        body_text = json.dumps(body) if body else u''
+        res.body = body_text.encode('utf-8')
+        res.content_type = 'application/json' if body else 'text/plain'
 
         return res(environ, start_response)
 
@@ -115,7 +116,7 @@ class WSGIHandler(object):
         return {'alt': self.alt_handler.get_altitude(**result.data)}
 
     def options_altitude(self, req):
-        pass
+        return u''
 
 
 class GmaltServer(WSGIServer):
@@ -136,7 +137,8 @@ class GmaltServer(WSGIServer):
 
     def __init__(self, handler, host, port, **kwargs):
         pool_size = kwargs.pop('pool_size') or 'default'
-        super(GmaltServer, self).__init__((host, port), WSGIHandler(handler), spawn=pool_size)
+        super(GmaltServer, self).__init__((host, port), WSGIHandler(handler),
+                                          spawn=pool_size)
 
     def serve_forever(self, stop_timeout=None):
         print('Serving on %s:%d' % self.address)

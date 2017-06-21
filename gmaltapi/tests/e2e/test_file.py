@@ -18,6 +18,11 @@ def file_server(folder):
 
 def test_get_altitude(file_server):
     with file_server:
-        alt = requests.get(file_server.get_url(), params={'lat': 0.9999, 'lng': 10.0001})
-        print(alt.status_code, alt.text)
-
+        alt = requests.get(file_server.get_url(),
+                           params={'lat': 0.9999, 'lng': 10.0001})
+        assert alt.status_code == 200
+        assert alt.json().get('alt') == 57
+        alt = requests.get(file_server.get_url(),
+                           params={'lat': 10.9999, 'lng': 10.0001})
+        assert alt.status_code == 200
+        assert alt.json().get('alt') is None

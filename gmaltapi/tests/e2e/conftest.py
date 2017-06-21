@@ -1,8 +1,12 @@
 import multiprocessing
 import socket
-import StringIO
 import time
 import wsgiref.simple_server
+
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO
 
 import pytest
 
@@ -36,9 +40,12 @@ class ApiWebServer(object):
             port = loaded_conf.get('server').get('port')
             app = loaded_conf.get('server').get('handler')
 
-            q.put((loaded_conf.get('server').get('host'), loaded_conf.get('server').get('port')))
+            q.put((host, port))
 
-            wsgiref.simple_server.make_server(host, port, server.WSGIHandler(app)).serve_forever()
+            wsgiref \
+                .simple_server \
+                .make_server(host, port, server.WSGIHandler(app)) \
+                .serve_forever()
 
         queue = multiprocessing.Queue()
 
@@ -69,8 +76,11 @@ class ApiWebServer(object):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.terminate()
 
+    def get_base_url(self):
+        return 'http://{}:{}'.format(self.host, self.port)
+
     def get_url(self):
-        return 'http://{}:{}/altitude'.format(self.host, self.port)
+        return '{}/altitude'.format(self.get_base_url())
 
     def terminate(self):
         if self._process:
@@ -93,8 +103,8 @@ class ApiWebServer(object):
         return success
 
 
-class ResetStingIO(StringIO.StringIO):
+class ResetStingIO(StringIO):
     def read(self, *args, **kwargs):
-        read_value = StringIO.StringIO.read(self, *args, **kwargs)
+        read_value = StringIO.read(self, *args, **kwargs)
         self.seek(0)
         return read_value
