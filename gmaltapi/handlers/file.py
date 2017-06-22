@@ -43,8 +43,10 @@ class Handler(object):
     def _hgt_filename_from_coordinates(pos):
         lat = int(math.floor(pos[0]))
         lng = int(math.floor(pos[1]))
-        return '{}{:02d}{}{:03d}.hgt'.format('N' if lat >= 0 else 'S', lat,
-                                             'E' if lng >= 0 else 'W', lng)
+        lat_symbol = 'N' if lat >= 0 else 'S'
+        lng_symbol = 'E' if lng >= 0 else 'W'
+        return '{}{:02d}{}{:03d}.hgt'.format(lat_symbol, abs(lat),
+                                             lng_symbol, abs(lng))
 
     @staticmethod
     def _validate_folder(folder):
