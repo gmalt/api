@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 #
-# (c) 2016 Jonathan Bouzekri
+# (c) 2017 Jonathan Bouzekri
 #
-# This file is part of the gMalt application
+# This file is part of the gmalt application
 #
 # MIT License :
-# https://raw.githubusercontent.com/gmalt/fs-service/master/LICENSE
+# https://raw.githubusercontent.com/gmalt/api/master/LICENSE.txt
 
-""" Entry point of the fileservice application """
+""" Entry point of the gmaltapi application """
 
 from gevent import monkey
 monkey.patch_all()  # noqa
@@ -19,8 +19,8 @@ from . import config
 
 
 class App(object):
-    """ Application main object. In charge of loading the DI container and
-    starting the server or workers
+    """ Application main object. In charge of loading the configuration,
+    initializing and starting the server
 
     :param str conf_file: path to the config file
     """
@@ -40,6 +40,7 @@ class App(object):
         return self.get('celery').worker_main()
 
     def start_server(self):
+        """ Start the gevent wsgi server """
         try:
             server.GmaltServer(**self.conf['server']).serve_forever()
         except KeyboardInterrupt:
@@ -47,17 +48,17 @@ class App(object):
 
 
 def run_server(*args, **kwargs):
-    """ Called by console_scripts `gmalt-file-server` to launch the
+    """ Called by console_scripts `gmalt-api-server` to launch the
     API web server
 
-    Usage : `gmalt-file-server conf/gmal.cfg`
+    Usage : `gmalt-api-server conf/gmalt.cfg`
     """
     app = App('conf/gmalt.cfg.dev')
     app.start_server()
 
 
 def run_worker(*args, **kwargs):
-    """ Called by console_scripts `gmalt-file-worker` to launch the workers
+    """ Called by console_scripts `gmalt-api-worker` to launch the workers
 
     It is a wrapper around the standard `celery` command. It accepts the same
     arguments with an additionnal option `-gmalt-config`

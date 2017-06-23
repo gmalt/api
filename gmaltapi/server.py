@@ -1,22 +1,17 @@
 # -*- coding: utf-8 -*-
 #
-# (c) 2016 Jonathan Bouzekri
+# (c) 2017 Jonathan Bouzekri
 #
-# This file is part of the gMalt application
+# This file is part of the gmalt application
 #
 # MIT License :
-# https://raw.githubusercontent.com/gmalt/fs-service/master/LICENSE
+# https://raw.githubusercontent.com/gmalt/api/master/LICENSE.txt
 
-""" Webservice HTTP REST API """
+""" Classes to handler gmalt API request with WSGI """
 
-import importlib
 import json
-import os
-import pkgutil
-
-import sys
-
 import logging
+
 from gevent.pywsgi import WSGIServer
 from marshmallow import Schema, fields, pre_load
 from webob import Request, Response
@@ -24,38 +19,24 @@ import webob.exc
 from routr import route, GET, POST, OPTIONS
 from routr.exc import NoMatchFound
 
-import gmaltapi.handlers
-
-
-class HandlerLoader(object):
-    HANDLERS = {}
-
-    def __init__(self):
-        self._load_available_handlers()
-
-    def _load_available_handlers(self):
-        pkg_path = os.path.dirname(gmaltapi.handlers.__file__)
-        available_modules = list(pkgutil.iter_modules([pkg_path]))
-        for module_ in available_modules:
-            self.HANDLERS[module_[1]] = module_[0]
-
-    def load(self, type_):
-        if type_ not in self.HANDLERS:
-            raise ValueError('No handler of type {}'.format(type_))
-
-        module_name = 'gmaltapi.handlers.' + type_
-        if module_name not in sys.modules:
-            importlib.import_module(module_name)
-
-        return getattr(sys.modules[module_name], 'Handler')
-
 
 class AltSchema(Schema):
+    """ A helper class to validate the query parameters of
+    the elevation endpoint.
+    """
     lat = fields.Number(required=True, allow_none=False)
     lng = fields.Number(required=True, allow_none=False)
 
     @pre_load()
     def read_params(self, req):
+        """ Control how :mod:`marshmallow` reads data from the
+        :class:`webob.Request` object
+
+        :param req: the request object
+        :type req: :class:`webob.Request`
+        :return: dict with `lat` and `lng`
+        :rtype: dict
+        """
         params = {}
         if 'lat' in req.params:
             params['lat'] = req.params.get('lat', None)
@@ -65,9 +46,16 @@ class AltSchema(Schema):
 
 
 class WSGIHandler(object):
-    """ Manage exception to return formatted message to client
+    """ gmalt API core WSGI handler that :
+        - reads the request
+        - route it (to `/altitude`)
+        - get elevation from handler based on request params
+        - manage exception and error messages
+        - create and return response
 
-    :param handler: WSGI callable
+    :param handler: elevation handler
+    :type handler: :class:`gmaltapi.handlers.files.Handler` or any class
+        implementing the `get_altitude` method
     """
     def __init__(self, alt_handler):
         self.alt_handler = alt_handler
@@ -78,6 +66,13 @@ class WSGIHandler(object):
                             route(OPTIONS, "/altitude", self.options_altitude))
 
     def __call__(self, environ, start_response):
+        """ WSGI callable
+
+        :param dict environ: WSGI environment dict
+        :param func start_response: the WSGI response function
+        :return: a response object compatible with WSGI middlewares
+        :rtype: :class:`webob.Response`
+        """
         try:
             req = Request(environ)
             body = self.router(req).target(req)
@@ -110,22 +105,41 @@ class WSGIHandler(object):
         return res(environ, start_response)
 
     def get_altitude(self, req):
+        """ GET /altitude
+        Returns the requested elevation value from HTTP params in request
+
+        :param req: HTTP request object
+        :type req: :class:`webob.Request`
+        :return: dict with elevation value found
+        :rtype: dict with the key `alt`
+        :raises: :class:`webob.exc.HTTPBadRequest` if any error in the request
+        """
         result = self.schema.load(req)
         if result.errors:
             raise webob.exc.HTTPBadRequest(detail=result.errors)
         return {'alt': self.alt_handler.get_altitude(**result.data)}
 
     def options_altitude(self, req):
+        """ OPTIONS /altitude
+        Authorize OPTIONS query for easy CORS
+
+        :param req: HTTP request object
+        :type req: :class:`webob.Request`
+        :return: empty string
+        :rtype: unicode
+        """
         return u''
 
 
 class GmaltServer(WSGIServer):
     """ A gevent webserver API to request elevation data
 
+    :param handler: the handler instance to load elevation data from
+        latitude and longitude
+    :type handler: :class:`gmaltapi.handlers.files.Handler` or any class
+        implementing the `get_altitude` method
     :param str host: host or ip binded to
     :param int port: port binded to
-    :param celery_service: the celery instance
-    :type celery_service: :class:`gmaltfileservice.task.GmaltCelery`
     """
 
     spec = {
@@ -138,8 +152,9 @@ class GmaltServer(WSGIServer):
     def __init__(self, handler, host, port, **kwargs):
         pool_size = kwargs.pop('pool_size') or 'default'
         super(GmaltServer, self).__init__((host, port), WSGIHandler(handler),
-                                          spawn=pool_size)
+                                          spawn=pool_size, **kwargs)
 
     def serve_forever(self, stop_timeout=None):
+        """ Start the server """
         print('Serving on %s:%d' % self.address)
         super(GmaltServer, self).serve_forever(stop_timeout=stop_timeout)

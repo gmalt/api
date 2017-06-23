@@ -2,9 +2,10 @@
 #
 # (c) 2017 Jonathan Bouzekri
 #
-# This file is part of the gMalt application
+# This file is part of the gmalt application
 #
-# MIT License : https://raw.githubusercontent.com/gmalt/api/master/LICENSE
+# MIT License :
+# https://raw.githubusercontent.com/gmalt/api/master/LICENSE.txt
 
 import os
 from setuptools import setup, find_packages
