@@ -14,15 +14,13 @@ import socket
 import time
 import wsgiref.simple_server
 
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
-
 import pytest
+
+from .. import ResetStingIO  # noqa
 
 import gmaltapi.server as server
 import gmaltapi.config as config
+import gmaltapi.app as app
 
 
 def pytest_addoption(parser):
@@ -68,20 +66,19 @@ class ApiWebServer(object):
         self._process = None
 
     def __enter__(self):
-        spec = {'server': server.GmaltServer.spec, 'handler': {}}
-        loaded_conf = config.make_config(self.config, spec)
+        loaded_conf = config.make_config(self.config, app.App.spec)
         self.host = loaded_conf.get('server').get('host')
         self.port = loaded_conf.get('server').get('port')
-        app = loaded_conf.get('server').get('handler')
+        handler = loaded_conf.get('server').get('handler')
 
-        def worker(host, port, app):
+        def worker(host, port, handler):
             wsgiref \
                 .simple_server \
-                .make_server(host, port, server.WSGIHandler(app)) \
+                .make_server(host, port, server.WSGIHandler(handler)) \
                 .serve_forever()
 
         self._process = multiprocessing.Process(
-            target=worker, args=(self.host, self.port, app)
+            target=worker, args=(self.host, self.port, handler)
         )
 
         self._process.start()
@@ -140,13 +137,3 @@ class ApiWebServer(object):
             sock.close()
 
         return success
-
-
-class ResetStingIO(StringIO):
-    """ A class to ease test. It provides an implentation of
-    StringIO that reset the buffer pointer after each read
-    """
-    def read(self, *args, **kwargs):
-        read_value = StringIO.read(self, *args, **kwargs)
-        self.seek(0)
-        return read_value

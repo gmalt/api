@@ -87,7 +87,7 @@ class WSGIHandler(object):
                     'code': status_code, 'title': e.response.title}
         except webob.exc.WSGIHTTPException as e:
             status_code = e.status_code
-            body = {'message': e.explanation, 'code': status_code,
+            body = {'message': str(e), 'code': status_code,
                     'title': e.title}
         except Exception as e:
             logging.exception(e)
