@@ -44,8 +44,8 @@ setup(
     ],
     entry_points='''
         [console_scripts]
-        gmalt-api-server = gmaltapi.admin:run_server
-        gmalt-api-worker = gmaltapi.admin:run_worker
+        gmalt-server = gmaltapi.admin:run_server
+        gmalt-worker = gmaltapi.admin:run_worker
 
         [services]
         celery = gmaltapi.task:GmaltCelery
