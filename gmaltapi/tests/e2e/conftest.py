@@ -18,7 +18,6 @@ import pytest
 
 from .. import ResetStingIO  # noqa
 
-import gmaltapi.server as server
 import gmaltapi.config as config
 import gmaltapi.app as app
 
@@ -66,7 +65,7 @@ class ApiWebServer(object):
         self._process = None
 
     def __enter__(self):
-        loaded_conf = config.make_config(self.config, app.App.spec)
+        loaded_conf = config.GmaltServerConfigObj(self.config, app.App.spec)
         self.host = loaded_conf.get('server').get('host')
         self.port = loaded_conf.get('server').get('port')
         handler = loaded_conf.get('server').get('handler')
@@ -74,7 +73,7 @@ class ApiWebServer(object):
         def worker(host, port, handler):
             wsgiref \
                 .simple_server \
-                .make_server(host, port, server.WSGIHandler(handler)) \
+                .make_server(host, port, handler) \
                 .serve_forever()
 
         self._process = multiprocessing.Process(

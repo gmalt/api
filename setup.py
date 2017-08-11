@@ -28,7 +28,7 @@ setup(
     long_description=read('README.rst'),
     install_requires=[
         'celery', 'redis', 'webob', 'gevent', 'configobj',
-        'gmalthgtparser', 'routr', 'marshmallow'
+        'gmalthgtparser', 'routr', 'marshmallow', 'wsgicors'
     ],
     extras_require={
         'test': ['flake8', 'requests', 'pytest']

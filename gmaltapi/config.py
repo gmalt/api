@@ -9,48 +9,13 @@
 
 """ Tools to manage the server configuration """
 
-import importlib
-import os
-import pkgutil
-
 import configobj
-import sys
 import validate
 
-import gmaltapi.handlers
+import gmaltapi.handler as handler
 
 
 class GmaltConfigObj(configobj.ConfigObj):
-    """ Load the configuration file, read it and return a dict based read
-    interface to this configuration
-
-    .. note:: the reading of the configuration file is done in two passes.
-        First, it reads the server section to identify the handler
-        Then, based on the handler, it loads and reads the handler section,
-        instantiate the handler and returns the handler instance as part of
-        the configuration
-
-    :param handler_loader: an object to load the correct handler based on
-        the type
-    :type handler_loader: :class:`gmaltapi.config.HandlerLoader`
-    :param str conf_file: path to the INI configuration file
-    :param dict spec: a dictionnary to specify the format of the INI file
-        sections
-    """
-    def __init__(self, handler_loader, conf_file, spec):
-        # First load current config to extract the configured handler
-        spec['server']['handler'] = self._build_handler_spec(handler_loader)
-        self._fill_parent(conf_file, spec)
-
-        # Then based on the handler update spec and reload config
-        handler_class = handler_loader.load(self['server']['handler'])
-        spec['handler'] = handler_class.spec
-        self.reset()
-        self._fill_parent(conf_file, spec)
-
-        # Fill the configuration with the handler instance
-        self['server']['handler'] = handler_class(**self['handler'])
-
     def _fill_parent(self, conf_file, spec):
         """ Load and verify the :class:`configobj.ConfigObj` this
         class is extending using `conf_file` and `spec`
@@ -64,23 +29,6 @@ class GmaltConfigObj(configobj.ConfigObj):
                      'interpolation': 'Template'}
         super(GmaltConfigObj, self).__init__(conf_file, **config_kw)
         self._verify()
-
-    @staticmethod
-    def _build_handler_spec(handler_loader):
-        """ Build a configobj compatible attribute spec string to
-        validate the handler type set in the server section.
-
-        :param handler_loader: an object to load the correct handler based on
-        the type
-        :type handler_loader: :class:`gmaltapi.config.HandlerLoader`
-        :return: the attribute spec for the handler type attribute in the
-            server section
-        :rtype: str
-        """
-        types = []
-        for handler in handler_loader.HANDLERS:
-            types.append(handler)
-        return 'option({}, default=file)'.format(', '.join(types))
 
     def _verify(self):
         """ Verify the loaded configration using configobj
@@ -115,29 +63,48 @@ class GmaltConfigObj(configobj.ConfigObj):
         return error_text
 
 
-class HandlerLoader(object):
-    HANDLERS = {}
+class GmaltServerConfigObj(GmaltConfigObj):
+    """ Load the configuration file, read it and return a dict based read
+    interface to this configuration
 
-    def __init__(self):
-        self._load_available_handlers()
+    .. note:: the reading of the configuration file is done in two passes.
+        First, it reads the server section to identify the handler
+        Then, based on the handler, it loads and reads the handler section,
+        instantiate the handler and returns the handler instance as part of
+        the configuration
 
-    def _load_available_handlers(self):
-        pkg_path = os.path.dirname(gmaltapi.handlers.__file__)
-        available_modules = list(pkgutil.iter_modules([pkg_path]))
-        for module_ in available_modules:
-            self.HANDLERS[module_[1]] = module_[0]
+    :param str conf_file: path to the INI configuration file
+    :param dict spec: a dictionnary to specify the format of the INI file
+        sections
+    :param bool create_handler: if True, replace handler type with handler
+        instance in server config
+    """
+    def __init__(self, conf_file, spec, create_handler=True):
+        # First load current config to extract the configured handler
+        spec['server']['handler'] = self._build_handler_spec()
+        self._fill_parent(conf_file, spec)
 
-    def load(self, type_):
-        if type_ not in self.HANDLERS:
-            raise ValueError('No handler of type {}'.format(type_))
+        handler_type = self['server']['handler']
+        spec['handler'] = handler.handler_loader.load(handler_type).spec
+        self.reset()
+        self._fill_parent(conf_file, spec)
 
-        module_name = 'gmaltapi.handlers.' + type_
-        if module_name not in sys.modules:
-            importlib.import_module(module_name)
+        # Fill the configuration with the handler instance
+        if create_handler:
+            handler_obj = handler.build_wsgi_handler(handler_type,
+                                                     self['handler'])
+            self['server']['handler'] = handler_obj
 
-        return getattr(sys.modules[module_name], 'Handler')
+    @staticmethod
+    def _build_handler_spec():
+        """ Build a configobj compatible attribute spec string to
+        validate the handler type set in the server section.
 
-
-def make_config(conf_file, spec):
-    handler_loader = HandlerLoader()
-    return GmaltConfigObj(handler_loader, conf_file, spec)
+        :return: the attribute spec for the handler type attribute in the
+            server section
+        :rtype: str
+        """
+        types = []
+        for handler_type in handler.handler_loader.HANDLERS:
+            types.append(handler_type)
+        return 'option({}, default=file)'.format(', '.join(types))

@@ -7,25 +7,26 @@
 # MIT License :
 # https://raw.githubusercontent.com/gmalt/api/master/LICENSE.txt
 
-""" Unit test of :mod:`gmaltapi.server` """
+""" Unit test of :mod:`gmaltapi.handler` """
 
 import pytest
 import webob
 import webob.exc
 
-import gmaltapi.server as server
+import gmaltapi.handler as handler
+import gmaltapi.handlers.file
 
 
 class TestAltShema(object):
     def test_read_params_empty(self):
-        alt_schema = server.AltSchema()
+        alt_schema = handler.AltSchema()
         params = alt_schema.read_params(webob.Request({}))
         assert 'lat' not in params
         assert 'lng' not in params
 
     def test_read_params(self):
         req = webob.Request({'QUERY_STRING': 'lat=1.001&lng=10.001'})
-        alt_schema = server.AltSchema()
+        alt_schema = handler.AltSchema()
         params = alt_schema.read_params(req)
         assert params['lat'] == '1.001'
         assert params['lng'] == '10.001'
@@ -36,7 +37,7 @@ class TestWSGIHandler(object):
     def test__call__altitude(self, mock_handler, mock_response, method):
         env = {'REQUEST_METHOD': method, 'PATH_INFO': '/altitude',
                'QUERY_STRING': 'lat=1.001&lng=10.001'}
-        wsgi_app = server.WSGIHandler(mock_handler)
+        wsgi_app = handler.WSGIHandler(mock_handler)
 
         result = wsgi_app(env, mock_response)
 
@@ -52,7 +53,7 @@ class TestWSGIHandler(object):
     def test__call__options_altitude(self, mock_handler, mock_response):
         env = {'REQUEST_METHOD': 'OPTIONS', 'PATH_INFO': '/altitude',
                'QUERY_STRING': 'lat=1.001&lng=10.001'}
-        wsgi_app = server.WSGIHandler(mock_handler)
+        wsgi_app = handler.WSGIHandler(mock_handler)
 
         result = wsgi_app(env, mock_response)
 
@@ -70,7 +71,7 @@ class TestWSGIHandler(object):
                                        method):
         env = {'REQUEST_METHOD': method, 'PATH_INFO': '/altitude',
                'QUERY_STRING': ''}
-        wsgi_app = server.WSGIHandler(mock_handler)
+        wsgi_app = handler.WSGIHandler(mock_handler)
 
         result = wsgi_app(env, mock_response)
 
@@ -93,7 +94,7 @@ class TestWSGIHandler(object):
                                           method):
         env = {'REQUEST_METHOD': method, 'PATH_INFO': '/altitude',
                'QUERY_STRING': 'lat=&lng='}
-        wsgi_app = server.WSGIHandler(mock_handler)
+        wsgi_app = handler.WSGIHandler(mock_handler)
 
         result = wsgi_app(env, mock_response)
 
@@ -116,7 +117,7 @@ class TestWSGIHandler(object):
                                           method):
         env = {'REQUEST_METHOD': method, 'PATH_INFO': '/altitude',
                'QUERY_STRING': 'lat=notanumber&lng=notanumber'}
-        wsgi_app = server.WSGIHandler(mock_handler)
+        wsgi_app = handler.WSGIHandler(mock_handler)
 
         result = wsgi_app(env, mock_response)
 
@@ -139,7 +140,7 @@ class TestWSGIHandler(object):
                                     method):
         env = {'REQUEST_METHOD': method, 'PATH_INFO': '/unknownroute',
                'QUERY_STRING': 'lat=1.001&lng=10.001'}
-        wsgi_app = server.WSGIHandler(mock_handler)
+        wsgi_app = handler.WSGIHandler(mock_handler)
 
         result = wsgi_app(env, mock_response)
 
@@ -180,7 +181,7 @@ class TestWSGIHandler(object):
 
         env = {'REQUEST_METHOD': method, 'PATH_INFO': '/altitude',
                'QUERY_STRING': 'lat=1.001&lng=10.001'}
-        wsgi_app = server.WSGIHandler(mock_handler)
+        wsgi_app = handler.WSGIHandler(mock_handler)
 
         result = wsgi_app(env, mock_response)
 
@@ -215,7 +216,7 @@ class TestWSGIHandler(object):
 
         env = {'REQUEST_METHOD': method, 'PATH_INFO': '/altitude',
                'QUERY_STRING': 'lat=1.001&lng=10.001'}
-        wsgi_app = server.WSGIHandler(mock_handler)
+        wsgi_app = handler.WSGIHandler(mock_handler)
 
         result = wsgi_app(env, mock_response)
 
@@ -245,3 +246,22 @@ class TestWSGIHandler(object):
         res_headers = [('Content-Length', '113'),
                        ('Content-Type', 'application/json')]
         assert mock_response.response_headers == res_headers
+
+
+class TestHandlerLoader(object):
+    def test__init__load_available_handlers(self):
+        loader = handler.handler_loader
+        assert len(loader.HANDLERS) == 2
+        assert 'celery' in loader.HANDLERS
+        assert 'file' in loader.HANDLERS
+
+    def test_load_unknown_handler(self):
+        with pytest.raises(ValueError) as exc:
+            loader = handler.handler_loader
+            loader.load('unknown')
+        assert str(exc.value) == 'No handler of type unknown'
+
+    def test_load_file_handler(self):
+        loader = handler.handler_loader
+        file_handler = loader.load('file')
+        assert file_handler is gmaltapi.handlers.file.Handler

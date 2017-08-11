@@ -29,7 +29,7 @@ class App(object):
     }
 
     def __init__(self, conf_file):
-        self.conf = config.make_config(conf_file, self.spec)
+        self.conf = config.GmaltServerConfigObj(conf_file, self.spec)
 
     def start_worker(self):
         """ Start the celery worker using the sys.argv configuration """

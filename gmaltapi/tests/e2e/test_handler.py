@@ -7,7 +7,7 @@
 # MIT License :
 # https://raw.githubusercontent.com/gmalt/api/master/LICENSE.txt
 
-""" Module testing the server HTTP standard implementation """
+""" Module testing the WSGI handler standard implementation """
 
 import pytest
 import requests
