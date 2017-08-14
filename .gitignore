@@ -95,3 +95,4 @@ ENV/
 # project
 *.dev
 tmp/
+conf/*.cfg

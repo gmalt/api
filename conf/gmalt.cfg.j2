@@ -1,0 +1,66 @@
+# This is a template file to run gmalt api with the built in
+# gevent wsgi server
+# There are a bunch of comments to explain each settings
+# Note : this file is provided as a j2 template to be used with a
+# tool like Ansible
+
+# ===== SECTION server =====
+# It configures the gevent server like host, port, ...
+
+[server]
+# handler : the type of handler. It defines how the server
+# access the elevation data. Available values are :
+# - file
+# - other coming soon
+# This settings is mandatory
+# default value : file
+# handler = file
+handler = {{ gmalt_api_handler_type }}
+
+# host : the host the server binds to
+# default value : localhost
+# host = localhost
+host = {{ gmalt_api_host }}
+
+# port : the port the server binds to
+# default value : 8088
+# port = 8088
+port = {{ gmalt_api_port }}
+
+# cors : sets the Access-Control-Allow-Origin headers
+# if configured, it enables the CORS feature of the server
+# you should set the list of domains you want.
+# default value : None
+# For example :
+# cors = https://gmalt.github.io http://localhost:8088
+{% if gmalt_api_cors %}
+cors = {{ gmalt_api_cors }}
+{% endif %}
+
+# pool_size : gevent greenlet pool size
+# if configured, enable the pool feature of the gevent feature
+# to limit the number of concurrent greenlets
+# default value : None
+# Example :
+# pool_size = 50
+{% if pool_size %}
+pool_size = {{ pool_size }}
+{% endif %}
+
+# ===== SECTION handler =====
+# It configures the handler
+# The configuration keys change according to the value you
+# have set up for the handler in the server section
+
+[handler]
+
+# ----- SECTION handler - file -----
+
+# folder : the folder where the server can find the SRTM raw HGT file
+# It is recommended to use absolute path.
+# This settings is mandatory
+# Example :
+# folder = $root/data
+{% if gmalt_api_handler_type == 'file' %}
+folder = {{ gmalt_api_file_folder }}
+{% endif %}
