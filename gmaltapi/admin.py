@@ -12,17 +12,29 @@
 from gevent import monkey
 monkey.patch_all()  # noqa
 
+import argparse
+import os
+
 from .app import App
 
 
 def run_server(*args, **kwargs):
-    """ Called by console_scripts `gmalt-api-server` to launch the
-    API web server
+    """ Called by console_scripts `gmalt-server` to launch the
+    gevent API web server
 
-    Usage : `gmalt-api-server conf/gmalt.cfg`
+    Usage : `gmalt-server conf/gmalt.cfg`
     """
-    app = App('conf/gmalt.cfg.dev')
-    app.start_server()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('config', help='configuration file')
+    parser.set_defaults(go=lambda config: App(config).start_server())
+    args = parser.parse_args()
+
+    if not os.path.isfile(args.config):
+        parser.error('Configuration file "%s" doesn\'t exist' % args.config)
+
+    status_code = args.go(args.config)
+
+    return status_code or 0
 
 
 def run_worker(*args, **kwargs):
